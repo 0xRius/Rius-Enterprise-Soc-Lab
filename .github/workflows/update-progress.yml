@@ -1,0 +1,93 @@
+name: Update Project Progress
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - .github/workflows/update-progress.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-progress:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.4.0
+
+      - name: Calculate README progress
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("README.md")
+          text = path.read_text(encoding="utf-8")
+
+          roadmap = re.search(
+              r"<!-- roadmap-start -->(.*?)<!-- roadmap-end -->",
+              text,
+              re.DOTALL,
+          )
+
+          if not roadmap:
+              raise SystemExit("Roadmap markers were not found.")
+
+          tasks = re.findall(
+              r"^- \[([ xX])\] ",
+              roadmap.group(1),
+              re.MULTILINE,
+          )
+
+          if not tasks:
+              raise SystemExit("No roadmap tasks were found.")
+
+          completed = sum(task.lower() == "x" for task in tasks)
+          percent = round(completed * 100 / len(tasks))
+
+          filled = round(percent / 5)
+          bar = "█" * filled + "░" * (20 - filled)
+
+          if percent < 25:
+              color = "red"
+          elif percent < 50:
+              color = "orange"
+          elif percent < 75:
+              color = "yellow"
+          else:
+              color = "brightgreen"
+
+          progress = f"""<!-- progress-start -->
+          ![Progress](https://img.shields.io/badge/Progress-{percent}%25-{color})
+          ![Target Completion](https://img.shields.io/badge/Target-Sep%2012%2C%202026-green)
+
+          `{bar}` **{percent}%**
+          <!-- progress-end -->"""
+
+          updated = re.sub(
+              r"<!-- progress-start -->.*?<!-- progress-end -->",
+              progress,
+              text,
+              flags=re.DOTALL,
+          )
+
+          path.write_text(updated, encoding="utf-8")
+          PY
+
+      - name: Commit updated progress
+        run: |
+          if git diff --quiet; then
+            echo "Progress is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "chore: update project progress"
+          git push
