@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/Rius%20Enterprise%20lab%20image.png" alt="RIUS Enterprise headquarters" width="100%">
-</p>
+
 
 # Operation Ghost Account: The RIUS Enterprise Insider Incident
 
